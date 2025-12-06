@@ -1,0 +1,85 @@
+version: '3.8'
+services:
+  api-gateway:
+    build: ./server/api-gateway/
+    ports:
+      - "5655:8080"
+    restart: unless-stopped
+    user: root
+    networks:
+      - microservices
+
+  authorization:
+    build: ./server/services/authorization/
+    ports:
+      - "8081:8081"
+    restart: unless-stopped
+    user: root
+    networks:
+      - microservices
+    depends_on:
+      - smtp-service-2
+
+  consumer:
+    build: ./server/services/consumer/
+    ports:
+      - "8082:8082"
+    restart: unless-stopped
+    user: root
+    networks:
+      - microservices
+
+  smtp-service-2:
+    image: maildev/maildev
+    container_name: smtp-service-2
+    restart: unless-stopped
+    environment:
+      - NODE_OPTIONS=--no-warnings=DeprecationWarning
+      - DEBUG=maildev*
+    command:
+      --outgoing-host smtp.gmail.com
+      --outgoing-port 465
+      --outgoing-secure
+      --outgoing-user mailer7012@gmail.com
+      --outgoing-pass "ldxm ypzz ewvf mnwq"
+      --auto-relay
+      --verbose
+    ports:
+      - "8181:1080"
+    networks:
+      - microservices
+
+  db:
+    image: postgres:latest
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: postgres
+    ports:
+      - "5434:5432"
+    networks:
+      - microservices
+  kafka:
+    image: apache/kafka:3.7.0
+    container_name: kafka
+    restart: unless-stopped
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: controller,broker
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_LISTENERS: PLAINTEXT://kafka:9092,CONTROLLER://kafka:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+    ports:
+      - "9092:9092"
+    networks:
+      - microservices
+
+networks:
+  microservices:
+    driver: bridge
